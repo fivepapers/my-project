@@ -1,23 +1,14 @@
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
+import { closestCenter, DndContext } from '@dnd-kit/core';
 import { Layout, theme, Typography } from 'antd';
 import { Provider } from 'react-redux';
-import { pointerOnCanvas } from './dragPointer';
-import { CANVAS_ID, Canvas } from './panels/Canvas';
+import { Canvas } from './panels/Canvas';
 import { ComponentLibrary } from './panels/ComponentLibrary';
 import { PropertyPanel } from './panels/PropertyPanel';
 import { Toolbar } from './panels/Toolbar';
 import { store } from './store';
+import { useDragDrop } from './hooks/useDragDrop';
 import { useHotkeys } from './hooks/useHotkeys';
 import {
-  commitAddComponent,
-  commitMoveStyle,
   commitPaste,
   commitRemoveComponent,
   copySelected,
@@ -26,8 +17,6 @@ import {
 } from './store';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { selectEditorMode, selectFirstSelectedId } from './store/selectors';
-import type { ComponentType } from './types';
-
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
 
@@ -39,11 +28,7 @@ function EditorShell() {
   const selectedId = useAppSelector(selectFirstSelectedId);
   const isEditMode = editorMode === 'edit';
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-  );
+  const { sensors, handleDragEnd } = useDragDrop();
 
   useHotkeys(
     {
@@ -57,30 +42,6 @@ function EditorShell() {
     },
     [dispatch, isEditMode, selectedId],
   );
-
-  const onDragEnd = (event: DragEndEvent) => {
-    if (!isEditMode) return;
-    const { active, over, delta } = event;
-    const data = active.data.current as
-      | { fromLibrary?: boolean; type?: ComponentType; fromCanvas?: boolean; id?: string }
-      | undefined;
-
-    if (data?.fromCanvas && data.id) {
-      dispatch(commitMoveStyle({ id: data.id, delta }));
-      return;
-    }
-
-    if (!over || over.id !== CANVAS_ID) return;
-    if (!data?.fromLibrary || !data.type) return;
-    const left = Math.max(0, pointerOnCanvas.x - 40);
-    const top = Math.max(0, pointerOnCanvas.y - 16);
-    dispatch(
-      commitAddComponent({
-        type: data.type,
-        position: { left, top },
-      }),
-    );
-  };
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
@@ -98,7 +59,7 @@ function EditorShell() {
         </Title>
       </Header>
       <Toolbar />
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <Layout>
           <Sider
             width={220}

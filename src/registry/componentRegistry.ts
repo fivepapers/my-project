@@ -28,12 +28,18 @@ export interface ComponentFieldSchema {
   options?: ComponentFieldOption[];
 }
 
+/** 纯数据，可序列化 */
 export interface ComponentMeta {
   type: ComponentType;
   label: string;
   defaultProps: Record<string, unknown>;
   defaultStyle: ComponentStyle;
   fields: ComponentFieldSchema[];
+}
+
+/** 渲染实现，不可序列化 */
+export interface ComponentRenderer {
+  type: ComponentType;
   render: (props: { node: Component }) => ReactNode;
 }
 
@@ -42,9 +48,11 @@ type FieldInput = Omit<ComponentFieldSchema, 'scope'>;
 interface ComponentMetaInput extends Omit<ComponentMeta, 'fields'> {
   propFields?: FieldInput[];
   styleFields?: FieldInput[];
+  render: (props: { node: Component }) => ReactNode;
 }
 
-const componentRegistry = new Map<ComponentType, ComponentMeta>();
+const metaRegistry = new Map<ComponentType, ComponentMeta>();
+const rendererRegistry = new Map<ComponentType, ComponentRenderer>();
 
 const sharedStyleFields: FieldInput[] = [
   { name: 'width', label: '宽度', kind: 'number', min: 1 },
@@ -61,25 +69,40 @@ function attachScope(scope: ComponentFieldScope, fields: FieldInput[]): Componen
   return fields.map((field) => ({ ...field, scope }));
 }
 
-export function defineComponentMeta(meta: ComponentMetaInput): ComponentMeta {
-  const { propFields = [], styleFields, ...rest } = meta;
-  return {
+export function registerMeta(meta: ComponentMeta): void {
+  metaRegistry.set(meta.type, meta);
+}
+
+export function registerRenderer(renderer: ComponentRenderer): void {
+  rendererRegistry.set(renderer.type, renderer);
+}
+
+export function getComponentMeta(type: ComponentType): ComponentMeta | undefined {
+  return metaRegistry.get(type);
+}
+
+export function getComponentRenderer(type: ComponentType): ComponentRenderer | undefined {
+  return rendererRegistry.get(type);
+}
+
+export function defineComponentMeta(input: ComponentMetaInput): ComponentMeta {
+  const { propFields = [], styleFields, render, ...rest } = input;
+  const meta: ComponentMeta = {
     ...rest,
     fields: [
       ...attachScope('props', propFields),
       ...attachScope('style', styleFields ?? sharedStyleFields),
     ],
   };
+  registerMeta(meta);
+  registerRenderer({ type: meta.type, render });
+  return meta;
 }
 
 export function registerComponent(meta: ComponentMeta): void {
-  componentRegistry.set(meta.type, meta);
-}
-
-export function getComponentMeta(type: ComponentType): ComponentMeta | undefined {
-  return componentRegistry.get(type);
+  registerMeta(meta);
 }
 
 export function getAllComponentMetas(): ComponentMeta[] {
-  return Array.from(componentRegistry.values());
+  return Array.from(metaRegistry.values());
 }

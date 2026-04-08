@@ -1,8 +1,12 @@
+import { createSelector } from '@reduxjs/toolkit';
 import type { Component, RootState } from '../types';
 
 export const selectRootId = (s: RootState) => s.components.rootId;
 
-export const selectRootNode = (s: RootState) => s.components.byId[s.components.rootId];
+export const selectRootNode = createSelector(
+  [(s: RootState) => s.components.rootId, (s: RootState) => s.components.byId],
+  (rootId, byId) => byId[rootId],
+);
 
 export function selectComponentById(state: RootState, id: string): Component | undefined {
   return state.components.byId[id];
@@ -28,11 +32,13 @@ export const selectCanUndo = (s: RootState) => s.history.past.length > 0;
 
 export const selectCanRedo = (s: RootState) => s.history.future.length > 0;
 
-export const selectHasClipboard = (s: RootState) =>
-  (s.clipboard?.componentIds.length ?? 0) > 0;
+export const selectHasClipboard = createSelector(
+  [(s: RootState) => s.clipboard?.componentIds.length ?? 0],
+  (len) => len > 0,
+);
 
 /** 当前选中的第一个组件（单选/多选时取第一个）；无选中为 `undefined` */
-export function selectPrimarySelectedComponent(s: RootState): Component | undefined {
-  const id = s.selection.selectedIds[0];
-  return id ? s.components.byId[id] : undefined;
-}
+export const selectPrimarySelectedComponent = createSelector(
+  [selectSelectedIds, (s: RootState) => s.components.byId],
+  (ids, byId): Component | undefined => (ids[0] ? byId[ids[0]!] : undefined),
+);

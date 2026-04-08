@@ -2,7 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { theme } from 'antd';
 import type { CSSProperties } from 'react';
-import { getComponentMeta } from '../registry/componentRegistry';
+import { getComponentRenderer } from '../registry/componentRegistry';
 import { useSelection } from '../hooks/useSelection';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -95,8 +95,8 @@ export function ComponentRenderer({ id }: Props) {
     if (!isPreview) dispatch(setHovered(null));
   };
 
-  const meta = getComponentMeta(node.type);
-  const inner = meta ? meta.render({ node }) : null;
+  const renderer = getComponentRenderer(node.type);
+  const inner = renderer ? renderer.render({ node }) : null;
 
   return (
     <div
